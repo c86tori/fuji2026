@@ -13,6 +13,10 @@
     h1 { margin:0 0 8px; font-size: clamp(24px, 4.8vw, 42px); letter-spacing:.02em; }
     .lead { margin:0 auto; max-width:760px; color:var(--muted); line-height:1.7; font-size:15px; }
     main { width:min(1120px, 100%); margin:0 auto; padding: 12px 14px 40px; }
+    .download { background:#111; color:#fff; border-radius:20px; padding:20px; margin:0 0 18px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    .download h2 { color:#fff; margin:0 0 6px; }
+    .download p { margin:0; color:#ddd; line-height:1.6; }
+    .download a { display:inline-block; padding:12px 16px; border-radius:999px; background:#fff; color:#111; text-decoration:none; font-weight:800; }
     .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.06); }
     .thumb { display:block; background:#fff; border-bottom:1px solid var(--line); }
@@ -32,6 +36,13 @@
     <p class="lead">A4横1枚で見られるように整理したPDFです。各日09:00-29:00の時間軸で、同じ時間にどのステージで何が演っているかを確認できます。</p>
   </header>
   <main>
+    <section class="download" aria-label="3日間まとめPDF">
+      <div>
+        <h2>3日間まとめPDF</h2>
+        <p>24 FRI / 25 SAT / 26 SUN を1つのPDFにまとめています。</p>
+      </div>
+      <a href="assets/3days.pdf" download>PDFをダウンロード</a>
+    </section>
     <section class="grid" aria-label="日別タイムテーブル">
       <article class="card">
         <a class="thumb" href="assets/24fri.pdf"><img src="assets/24fri.png" alt="24 FRI タイムテーブルのプレビュー"></a>
