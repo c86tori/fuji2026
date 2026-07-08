@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>24 FRI 横向きビュー / FUJI ROCK FESTIVAL '26</title>
+  <style>
+    :root {--bg:#f7f5ef;--paper:#fffef9;--ink:#151515;--muted:#67625b;--line:#ded8cc;--accent:#f36b21;--stage-top:7.58%;--stage-bottom:96.13%;}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Hiragino Sans","Yu Gothic",sans-serif;}
+    a{color:inherit}
+    .landscape-shell{width:min(1280px,100%);margin:0 auto;padding:14px 14px 28px;}
+    .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+    h1{margin:0;font-size:clamp(20px,4vw,36px);line-height:1;font-weight:1000;letter-spacing:-.05em;white-space:nowrap;}
+    .tools{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:8px 11px;border-radius:999px;text-decoration:none;font-weight:1000;font-size:12px;white-space:nowrap;background:#111;color:#fff;}
+    .btn.accent{background:var(--accent)}
+    .note{margin:0 0 10px;color:var(--muted);font-size:12px;line-height:1.5;font-weight:750}
+    .viewer{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:auto;box-shadow:0 12px 28px rgba(35,28,20,.13);}
+    .sheet{position:relative;width:max(100%,1180px);}
+    .sheet img{display:block;width:100%;height:auto;}
+    .now-line{position:absolute;left:0;right:0;top:calc(var(--stage-top) + (var(--line-progress,0) * (var(--stage-bottom) - var(--stage-top))));height:0;border-top:2px solid #e50012;filter:drop-shadow(0 .5px .5px rgba(0,0,0,.18));z-index:3;display:none;pointer-events:none}
+    .now-line::before{content:"現在時刻";position:absolute;left:8px;top:-18px;background:#e50012;color:#fff;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:1000;white-space:nowrap}
+    .active .now-line{display:block}
+    .status{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:10px 0 0;color:var(--muted);font-size:12px;font-weight:750;line-height:1.5}
+    .status strong{color:var(--ink);font-size:13px}
+
+    @media (max-width: 820px) and (orientation: portrait) {
+      html,body{height:100%;overflow:hidden;background:#111;}
+      .landscape-shell{position:fixed;left:0;top:0;width:100vh;height:100vw;transform:rotate(90deg) translateY(-100%);transform-origin:top left;overflow:auto;padding:10px;background:var(--bg);}
+      .bar{margin-bottom:8px}
+      h1{font-size:20px}
+      .note{font-size:11px;margin-bottom:8px}
+      .viewer{border-radius:12px;}
+      .sheet{width:calc(100vh - 20px);min-width:980px;}
+      .btn{min-height:30px;padding:7px 10px;font-size:11px}
+      .status{font-size:11px}
+    }
+
+    @media (max-width: 820px) and (orientation: landscape) {
+      .landscape-shell{width:100%;padding:8px;}
+      .bar{margin-bottom:6px}
+      h1{font-size:19px}
+      .note{display:none}
+      .viewer{height:calc(100vh - 86px);}
+      .sheet{width:max(100%,1180px);}
+    }
+  </style>
+</head>
+<body data-day-label="24 FRI" data-start-utc="2026-07-24T00:00:00Z" data-end-utc="2026-07-24T20:00:00Z">
+  <div class="landscape-shell">
+    <div class="bar">
+      <h1>24 FRI / 横向きビュー</h1>
+      <div class="tools">
+        <a class="btn accent" href="24fri-live.html">現在時刻つき</a>
+        <a class="btn" href="index.html">戻る</a>
+      </div>
+    </div>
+    <p class="note">スマホでは横向きに近い見え方で表示します。赤線は対象日の09:00-29:00に現在時刻を示します。</p>
+    <div class="viewer">
+      <div class="sheet">
+        <img src="assets/24fri.png" alt="24 FRI タイムテーブル">
+        <div class="now-line" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="status"><strong id="clockText">現在時刻</strong><span id="statusText">読み込み中です。</span></div>
+  </div>
+<script>
+  const config = {
+    dayLabel: document.body.dataset.dayLabel,
+    startUtc: new Date(document.body.dataset.startUtc).getTime(),
+    endUtc: new Date(document.body.dataset.endUtc).getTime()
+  };
+  const viewer = document.querySelector('.viewer');
+  const sheet = document.querySelector('.sheet');
+  const statusText = document.querySelector('#statusText');
+  const clockText = document.querySelector('#clockText');
+  function fmtJST(date){
+    return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+  }
+  function getDisplayNow(){
+    const params = new URLSearchParams(window.location.search);
+    const test = params.get('test');
+    if (!test) return { date: new Date(), isTest: false };
+    let value = test.trim().replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) value += ':00+09:00';
+    else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) value += '+09:00';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return { date: new Date(), isTest: false, invalid: true };
+    return { date, isTest: true };
+  }
+  function update(){
+    const displayNow = getDisplayNow();
+    const now = displayNow.date;
+    const t = now.getTime();
+    if (displayNow.invalid) {
+      clockText.textContent = '現在時刻 ' + fmtJST(new Date()) + '（JST）';
+      statusText.textContent = 'testの日時形式を確認してください。例: ?test=2026-07-24T12:30';
+      viewer.classList.remove('active');
+      return;
+    }
+    clockText.textContent = (displayNow.isTest ? 'テスト時刻 ' : '現在時刻 ') + fmtJST(now) + '（JST）';
+    if (t < config.startUtc || t > config.endUtc) {
+      viewer.classList.remove('active');
+      statusText.textContent = config.dayLabel + ' の09:00-29:00に赤線が表示されます。';
+      return;
+    }
+    const p = Math.max(0, Math.min(1, (t - config.startUtc) / (config.endUtc - config.startUtc)));
+    sheet.style.setProperty('--line-progress', p.toFixed(6));
+    viewer.classList.add('active');
+    statusText.textContent = displayNow.isTest ? config.dayLabel + ' のテスト位置を表示中です。' : config.dayLabel + ' の現在位置を表示中です。';
+  }
+  update();
+  setInterval(update, 30000);
+</script>
+</body>
+</html>
