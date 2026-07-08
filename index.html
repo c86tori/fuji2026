@@ -14,6 +14,8 @@
       --line: #ded8cc;
       --orange: #f36b21;
       --orange2: #ff8a4b;
+      --sunday-red: #e83f32;
+      --sunday-red2: #ff6b4a;
       --dark: #141414;
       --shadow: 0 16px 36px rgba(35, 28, 20, .10);
       --green: #68a93a;
@@ -180,7 +182,7 @@
     }
     .card:nth-child(1) .card-head { background: var(--orange); }
     .card:nth-child(2) .card-head { background: #2387c8; }
-    .card:nth-child(3) .card-head { background: var(--orange); }
+    .card:nth-child(3) .card-head { background: linear-gradient(135deg, var(--sunday-red), var(--sunday-red2)); }
     .card-head small { font-size: 11px; opacity: .86; font-weight: 900; }
     .thumb {
       display: block;
@@ -195,8 +197,39 @@
       transform: scale(1.01);
       transform-origin: top center;
     }
-    .body { padding: 14px; }
+    .body { padding: 12px 14px 14px; }
+    .card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     .buttons { display: flex; gap: 9px; flex-wrap: wrap; }
+    .live-small {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--orange);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 1000;
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+      box-shadow: 0 5px 12px rgba(243,107,33,.22);
+    }
+    .card:nth-child(2) .live-small {
+      background: #2387c8;
+      box-shadow: 0 5px 12px rgba(35,135,200,.22);
+    }
+    .card:nth-child(3) .live-small {
+      background: var(--sunday-red);
+      box-shadow: 0 5px 12px rgba(232,63,50,.22);
+    }
     .button {
       display: inline-flex;
       align-items: center;
@@ -212,6 +245,8 @@
     }
     .sub { background: #ece7dd; color: #111; }
     .button:hover, .button:focus-visible { outline: 3px solid rgba(243,107,33,.25); }
+
+
 
     footer {
       width: min(1180px, 100%);
@@ -279,21 +314,22 @@
       <article class="card">
         <div class="card-head"><span>24 FRI</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/24fri.pdf"><img src="assets/24fri.png" alt="24 FRI タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="buttons"><a class="button" href="assets/24fri.pdf">PDFを見る</a><a class="button sub" href="assets/24fri.csv">CSV</a></div></div>
+        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/24fri.pdf">PDFを見る</a><a class="button sub" href="assets/24fri.csv">CSV</a></div><a class="live-small" href="24fri-live.html">現在時刻つきで見る</a></div></div>
       </article>
 
       <article class="card">
         <div class="card-head"><span>25 SAT</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/25sat.pdf"><img src="assets/25sat.png" alt="25 SAT タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="buttons"><a class="button" href="assets/25sat.pdf">PDFを見る</a><a class="button sub" href="assets/25sat.csv">CSV</a></div></div>
+        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/25sat.pdf">PDFを見る</a><a class="button sub" href="assets/25sat.csv">CSV</a></div><a class="live-small" href="25sat-live.html">現在時刻つきで見る</a></div></div>
       </article>
 
       <article class="card">
         <div class="card-head"><span>26 SUN</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/26sun.pdf"><img src="assets/26sun.png" alt="26 SUN タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="buttons"><a class="button" href="assets/26sun.pdf">PDFを見る</a><a class="button sub" href="assets/26sun.csv">CSV</a></div></div>
+        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/26sun.pdf">PDFを見る</a><a class="button sub" href="assets/26sun.csv">CSV</a></div><a class="live-small" href="26sun-live.html">現在時刻つきで見る</a></div></div>
       </article>
     </section>
+
   </main>
 
   <footer>
