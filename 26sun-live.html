@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>26 SUN 現在時刻つきタイムテーブル</title>
+  <style>
+    :root {
+      --bg:#f7f5ef; --paper:#fffef9; --ink:#151515; --muted:#67625b; --line:#ded8cc; --orange:#f36b21; --shadow:0 16px 36px rgba(35,28,20,.10);
+      --stage-top: 7.58%; --stage-bottom: 96.13%;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,rgba(243,107,33,.08),transparent 260px),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Hiragino Sans","Yu Gothic",sans-serif;}
+    header,main,footer{width:min(1180px,100%);margin:0 auto;padding-left:18px;padding-right:18px}
+    header{padding-top:22px;padding-bottom:14px}
+    .top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}
+    h1{margin:0;font-size:clamp(25px,5vw,54px);line-height:1;letter-spacing:-.055em;font-weight:1000;white-space:nowrap}
+    .sub{margin:8px 0 0;color:var(--muted);font-weight:750;line-height:1.6;font-size:14px}
+    .back{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 14px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:1000;white-space:nowrap}
+    main{padding-top:16px;padding-bottom:40px}
+    .status{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:13px 14px;margin-bottom:14px;box-shadow:var(--shadow)}
+    .status strong{font-size:18px}.status span{color:var(--muted);font-weight:750;font-size:13px;line-height:1.5}
+    .viewer{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:auto;box-shadow:var(--shadow)}
+    .sheet{position:relative;width:max(100%,1100px)}
+    .sheet img{display:block;width:100%;height:auto}
+    .now-line{position:absolute;left:0;right:0;top:calc(var(--stage-top) + (var(--line-progress,0) * (var(--stage-bottom) - var(--stage-top))));height:0;border-top:2px solid #e50012;filter:drop-shadow(0 .5px .5px rgba(0,0,0,.18));z-index:3;display:none;pointer-events:none}
+    .now-line::before{content:"現在時刻";position:absolute;left:8px;top:-18px;background:#e50012;color:#fff;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:1000;letter-spacing:.02em;white-space:nowrap}
+    .active .now-line{display:block}
+    .links{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:10px 13px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:1000;font-size:14px}.button.subbtn{background:#ece7dd;color:#111}
+    footer{color:var(--muted);text-align:center;font-size:12px;padding-bottom:30px;line-height:1.6}
+    @media(max-width:680px){header,main,footer{padding-left:14px;padding-right:14px}.top{display:block}h1{font-size:clamp(20px,6.4vw,32px);letter-spacing:-.05em}.back{margin-top:12px;width:100%}.sheet{width:1100px}.status strong{font-size:16px}}
+</style>
+</head>
+<body data-day-label="26 SUN" data-start-utc="2026-07-26T00:00:00Z" data-end-utc="2026-07-26T20:00:00Z">
+  <header>
+    <div class="top">
+      <div>
+        <h1>26 SUN / FUJI ROCK FESTIVAL '26</h1>
+        <p class="sub">09:00-29:00、10分刻み、ステージ別。赤線が現在時刻の位置を示します。</p>
+      </div>
+      <a class="back" href="index.html">トップへ戻る</a>
+    </div>
+  </header>
+  <main>
+    <div class="status"><strong id="clockText">現在時刻</strong><span id="statusText">読み込み中です。</span></div>
+    <div class="viewer">
+      <div class="sheet">
+        <img src="assets/26sun.png" alt="26 SUN タイムテーブル">
+        <div class="now-line" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="links"><a class="button" href="assets/26sun.pdf">PDFを見る</a><a class="button subbtn" href="assets/26sun.csv">CSV</a></div>
+  </main>
+  <footer><p>個人用に整理した非公式タイムテーブルです。出演時間などは必ず公式発表も確認してください。</p></footer>
+
+<script>
+  const config = {
+    dayLabel: document.body.dataset.dayLabel,
+    startUtc: new Date(document.body.dataset.startUtc).getTime(),
+    endUtc: new Date(document.body.dataset.endUtc).getTime()
+  };
+  const viewer = document.querySelector('.viewer');
+  const sheet = document.querySelector('.sheet');
+  const line = document.querySelector('.now-line');
+  const statusText = document.querySelector('#statusText');
+  const clockText = document.querySelector('#clockText');
+
+  function fmtJST(date){
+    return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+  }
+  function getDisplayNow(){
+    const params = new URLSearchParams(window.location.search);
+    const test = params.get('test');
+    if (!test) return { date: new Date(), isTest: false };
+
+    // テスト用。例: ?test=2026-07-24T12:30
+    // タイムゾーン未指定の場合は、日本時間（+09:00）として扱います。
+    let value = test.trim().replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) value += ':00+09:00';
+    else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) value += '+09:00';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return { date: new Date(), isTest: false, invalid: true };
+    return { date, isTest: true };
+  }
+
+  function update(){
+    const displayNow = getDisplayNow();
+    const now = displayNow.date;
+    const t = now.getTime();
+
+    if (displayNow.invalid) {
+      clockText.textContent = '現在時刻 ' + fmtJST(new Date()) + '（JST）';
+      statusText.textContent = 'testの日時形式を確認してください。例: ?test=2026-07-24T12:30';
+      viewer.classList.remove('active');
+      return;
+    }
+
+    clockText.textContent = (displayNow.isTest ? 'テスト時刻 ' : '現在時刻 ') + fmtJST(now) + '（JST）';
+    if (t < config.startUtc || t > config.endUtc) {
+      viewer.classList.remove('active');
+      statusText.textContent = config.dayLabel + ' の09:00-29:00に赤線が表示されます。';
+      return;
+    }
+    const p = Math.max(0, Math.min(1, (t - config.startUtc) / (config.endUtc - config.startUtc)));
+    sheet.style.setProperty('--line-progress', p.toFixed(6));
+    viewer.classList.add('active');
+    statusText.textContent = displayNow.isTest ? config.dayLabel + ' のテスト位置を表示中です。' : config.dayLabel + ' の現在位置を表示中です。';
+  }
+  update();
+  setInterval(update, 30000);
+</script>
+
+</body>
+</html>
