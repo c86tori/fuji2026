@@ -58,7 +58,7 @@
       <h1>24 FRI / 横向きビュー</h1>
       <div class="tools">
         <a class="btn accent desktop-only" href="24fri-live.html">現在時刻つき</a>
-        <a class="btn" href="index.html">戻る</a>
+        <a class="btn" id="backToLive" href="24fri-live.html">戻る</a>
       </div>
     </div>
     <p class="note">スマホでは横向きに近い見え方で表示します。赤線は対象日の09:00-29:00に現在時刻を示します。</p>
@@ -132,5 +132,12 @@
   update();
   setInterval(update, 30000);
 </script>
+
+  <script>
+    (function(){
+      const back = document.getElementById('backToLive');
+      if (back && location.search) back.href = back.getAttribute('href') + location.search;
+    })();
+  </script>
 </body>
 </html>
