@@ -180,9 +180,9 @@
       font-weight: 1000;
       letter-spacing: .02em;
     }
-    .card:nth-child(1) .card-head { background: var(--orange); }
-    .card:nth-child(2) .card-head { background: #2387c8; }
-    .card:nth-child(3) .card-head { background: linear-gradient(135deg, var(--sunday-red), var(--sunday-red2)); }
+    .card:nth-child(1) .card-head { background: linear-gradient(90deg, var(--orange) 0%, var(--orange2) 100%); }
+    .card:nth-child(2) .card-head { background: linear-gradient(90deg, #2387c8 0%, #49aee8 100%); }
+    .card:nth-child(3) .card-head { background: linear-gradient(90deg, var(--sunday-red) 0%, var(--sunday-red2) 100%); }
     .card-head small { font-size: 11px; opacity: .86; font-weight: 900; }
     .thumb {
       display: block;
@@ -204,6 +204,9 @@
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+    }
+    .card-actions.single {
+      justify-content: flex-end;
     }
     .buttons { display: flex; gap: 9px; flex-wrap: wrap; }
     .live-small {
@@ -287,7 +290,10 @@
       h1 { font-size: clamp(19px, 6.1vw, 22px); letter-spacing: -.05em; }
       .subtitle { font-size: 16px; }
     }
-  </style>
+  
+    .tick-colon{display:inline-block;font-size:1.08em;font-weight:1000;line-height:1;margin:0 .035em;vertical-align:.02em;opacity:1;animation:tickPulse 1s ease-in-out infinite;}
+    @keyframes tickPulse{0%,100%{transform:scale(1);filter:none}50%{transform:scale(1.18);filter:drop-shadow(0 0 1px currentColor)}}
+</style>
 </head>
 <body>
   <header>
@@ -314,19 +320,19 @@
       <article class="card">
         <div class="card-head"><span>24 FRI</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/24fri.pdf"><img src="assets/24fri.png" alt="24 FRI タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/24fri.pdf">PDFを見る</a><a class="button sub" href="assets/24fri.csv">CSV</a></div><a class="live-small" href="24fri-live.html">現在時刻つきで見る</a></div></div>
+        <div class="body"><div class="card-actions single"><a class="live-small" href="24fri-live.html">現在時刻つきで見る</a></div></div>
       </article>
 
       <article class="card">
         <div class="card-head"><span>25 SAT</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/25sat.pdf"><img src="assets/25sat.png" alt="25 SAT タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/25sat.pdf">PDFを見る</a><a class="button sub" href="assets/25sat.csv">CSV</a></div><a class="live-small" href="25sat-live.html">現在時刻つきで見る</a></div></div>
+        <div class="body"><div class="card-actions single"><a class="live-small" href="25sat-live.html">現在時刻つきで見る</a></div></div>
       </article>
 
       <article class="card">
         <div class="card-head"><span>26 SUN</span><small>PDF / CSV</small></div>
         <a class="thumb" href="assets/26sun.pdf"><img src="assets/26sun.png" alt="26 SUN タイムテーブルのプレビュー"></a>
-        <div class="body"><div class="card-actions"><div class="buttons"><a class="button" href="assets/26sun.pdf">PDFを見る</a><a class="button sub" href="assets/26sun.csv">CSV</a></div><a class="live-small" href="26sun-live.html">現在時刻つきで見る</a></div></div>
+        <div class="body"><div class="card-actions single"><a class="live-small" href="26sun-live.html">現在時刻つきで見る</a></div></div>
       </article>
     </section>
 

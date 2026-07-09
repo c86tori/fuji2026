@@ -49,7 +49,8 @@
       .viewer{height:calc(100vh - 86px);}
       .sheet{width:max(100%,1180px);}
     }
-  </style>
+  
+</style>
 </head>
 <body data-day-label="24 FRI" data-start-utc="2026-07-24T00:00:00Z" data-end-utc="2026-07-24T20:00:00Z">
   <div class="landscape-shell">
@@ -79,8 +80,22 @@
   const sheet = document.querySelector('.sheet');
   const statusText = document.querySelector('#statusText');
   const clockText = document.querySelector('#clockText');
-  function fmtJST(date){
-    return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function jstParts(date){
+    const parts = new Intl.DateTimeFormat('ja-JP',{
+      timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', hourCycle:'h23'
+    }).formatToParts(date).reduce((acc,p)=>{ acc[p.type]=p.value; return acc; },{});
+    return parts;
+  }
+  function fmtJSTText(date){
+    const p = jstParts(date);
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+  }
+  function dayStatusLabel(){
+    const p = jstParts(new Date(config.startUtc));
+    const dayName = config.dayLabel.replace(/^\d+\s*/, '');
+    return `${Number(p.month)}/${Number(p.day)} ${dayName}`;
   }
   function getDisplayNow(){
     const params = new URLSearchParams(window.location.search);
@@ -98,21 +113,21 @@
     const now = displayNow.date;
     const t = now.getTime();
     if (displayNow.invalid) {
-      clockText.textContent = '現在時刻 ' + fmtJST(new Date()) + '（JST）';
+      clockText.textContent = '現在時刻 ' + fmtJSTText(new Date()) + '（JST）';
       statusText.textContent = 'testの日時形式を確認してください。例: ?test=2026-07-24T12:30';
       viewer.classList.remove('active');
       return;
     }
-    clockText.textContent = (displayNow.isTest ? 'テスト時刻 ' : '現在時刻 ') + fmtJST(now) + '（JST）';
+    clockText.textContent = (displayNow.isTest ? 'テスト時刻 ' : '現在時刻 ') + fmtJSTText(now) + '（JST）';
     if (t < config.startUtc || t > config.endUtc) {
       viewer.classList.remove('active');
-      statusText.textContent = config.dayLabel + ' 09:00-29:00に赤線表示';
+      statusText.textContent = dayStatusLabel() + ' の09:00-29:00に赤線が表示されます。';
       return;
     }
     const p = Math.max(0, Math.min(1, (t - config.startUtc) / (config.endUtc - config.startUtc)));
     sheet.style.setProperty('--line-progress', p.toFixed(6));
     viewer.classList.add('active');
-    statusText.textContent = displayNow.isTest ? config.dayLabel + ' テスト位置表示中' : config.dayLabel + ' 現在位置表示中';
+    statusText.textContent = displayNow.isTest ? dayStatusLabel() + ' のテスト位置を表示中です。' : dayStatusLabel() + ' の現在位置を表示中です。';
   }
   update();
   setInterval(update, 30000);
