@@ -110,6 +110,29 @@
       .bar{top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));}
     }
 
+
+    /* Dedicated timetable pinch zoom: the back button stays outside the zoom layer */
+    .viewer{
+      overflow:hidden !important;
+      touch-action:none;
+      overscroll-behavior:none;
+      cursor:grab;
+    }
+    .viewer.is-dragging{cursor:grabbing;}
+    .sheet{
+      transform-origin:0 0;
+      will-change:transform;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .bar{
+      position:fixed !important;
+      top:max(10px,env(safe-area-inset-top)) !important;
+      right:max(10px,env(safe-area-inset-right)) !important;
+      z-index:2147483647 !important;
+      transform:none !important;
+    }
+
 </style>
 </head>
 <body data-day-label="24 FRI" data-start-utc="2026-07-24T00:00:00Z" data-end-utc="2026-07-24T20:00:00Z">
@@ -253,6 +276,186 @@
       layer.appendChild(el);
     });
   })();
+</script>
+
+
+<script>
+(function(){
+  const viewport = document.querySelector('.viewer');
+  const content = document.querySelector('.sheet');
+  if (!viewport || !content) return;
+
+  let scale = 1;
+  let x = 0;
+  let y = 0;
+  const minScale = 1;
+  const maxScale = 4;
+  const pointers = new Map();
+  let gestureStart = null;
+  let moved = false;
+
+  function contentBaseSize(){
+    return {
+      width: content.offsetWidth,
+      height: content.offsetHeight
+    };
+  }
+
+  function clampTransform(){
+    const vpW = viewport.clientWidth;
+    const vpH = viewport.clientHeight;
+    const base = contentBaseSize();
+    const scaledW = base.width * scale;
+    const scaledH = base.height * scale;
+
+    const minX = Math.min(0, vpW - scaledW);
+    const minY = Math.min(0, vpH - scaledH);
+
+    x = Math.max(minX, Math.min(0, x));
+    y = Math.max(minY, Math.min(0, y));
+  }
+
+  function render(){
+    clampTransform();
+    content.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale})`;
+  }
+
+  function pointArray(){
+    return Array.from(pointers.values());
+  }
+
+  function distance(a,b){
+    return Math.hypot(b.clientX-a.clientX, b.clientY-a.clientY);
+  }
+
+  function midpoint(a,b){
+    return {
+      x:(a.clientX+b.clientX)/2,
+      y:(a.clientY+b.clientY)/2
+    };
+  }
+
+  function beginGesture(){
+    const pts = pointArray();
+    moved = false;
+
+    if (pts.length === 1){
+      gestureStart = {
+        type:'pan',
+        px:pts[0].clientX,
+        py:pts[0].clientY,
+        x,
+        y
+      };
+    } else if (pts.length >= 2){
+      const a=pts[0], b=pts[1];
+      const mid=midpoint(a,b);
+      const rect=viewport.getBoundingClientRect();
+      const localMid={x:mid.x-rect.left,y:mid.y-rect.top};
+
+      gestureStart = {
+        type:'pinch',
+        distance:Math.max(1,distance(a,b)),
+        scale,
+        x,
+        y,
+        localMid,
+        anchorX:(localMid.x-x)/scale,
+        anchorY:(localMid.y-y)/scale
+      };
+    }
+  }
+
+  viewport.addEventListener('pointerdown', e=>{
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    viewport.setPointerCapture?.(e.pointerId);
+    beginGesture();
+  });
+
+  viewport.addEventListener('pointermove', e=>{
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    const pts=pointArray();
+
+    if (pts.length >= 2){
+      if (!gestureStart || gestureStart.type!=='pinch') beginGesture();
+      const a=pts[0], b=pts[1];
+      const mid=midpoint(a,b);
+      const rect=viewport.getBoundingClientRect();
+      const localMid={x:mid.x-rect.left,y:mid.y-rect.top};
+      const nextScale=Math.max(minScale,Math.min(maxScale,
+        gestureStart.scale*(distance(a,b)/gestureStart.distance)
+      ));
+
+      scale=nextScale;
+      x=localMid.x-gestureStart.anchorX*scale;
+      y=localMid.y-gestureStart.anchorY*scale;
+      moved=true;
+      viewport.classList.add('is-dragging');
+      render();
+      e.preventDefault();
+      return;
+    }
+
+    if (pts.length===1){
+      if (!gestureStart || gestureStart.type!=='pan') beginGesture();
+      const p=pts[0];
+      const dx=p.clientX-gestureStart.px;
+      const dy=p.clientY-gestureStart.py;
+      if (Math.abs(dx)+Math.abs(dy)>4) moved=true;
+      x=gestureStart.x+dx;
+      y=gestureStart.y+dy;
+      viewport.classList.add('is-dragging');
+      render();
+      if (moved) e.preventDefault();
+    }
+  },{passive:false});
+
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    viewport.releasePointerCapture?.(e.pointerId);
+    viewport.classList.remove('is-dragging');
+    if (pointers.size) beginGesture();
+    else gestureStart=null;
+  }
+
+  viewport.addEventListener('pointerup',endPointer);
+  viewport.addEventListener('pointercancel',endPointer);
+
+  // Desktop trackpad/mouse: Ctrl/Command + wheel zooms the timetable only.
+  viewport.addEventListener('wheel',e=>{
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const rect=viewport.getBoundingClientRect();
+    const px=e.clientX-rect.left;
+    const py=e.clientY-rect.top;
+    const anchorX=(px-x)/scale;
+    const anchorY=(py-y)/scale;
+    const factor=Math.exp(-e.deltaY*0.002);
+    scale=Math.max(minScale,Math.min(maxScale,scale*factor));
+    x=px-anchorX*scale;
+    y=py-anchorY*scale;
+    render();
+  },{passive:false});
+
+  // Double-tap/double-click resets the view.
+  let lastTap=0;
+  viewport.addEventListener('click',e=>{
+    const now=Date.now();
+    if (now-lastTap<320 && !e.target.closest('.pick-cell')){
+      scale=1; x=0; y=0; render();
+      lastTap=0;
+    } else {
+      lastTap=now;
+    }
+  });
+
+  window.addEventListener('resize',render);
+  const img=content.querySelector('img');
+  if (img && !img.complete) img.addEventListener('load',render);
+  render();
+})();
 </script>
 
 </body>
