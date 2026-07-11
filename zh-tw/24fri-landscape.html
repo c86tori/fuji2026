@@ -72,6 +72,29 @@
         text-align:left;
       }
     }
+
+
+    /* Inner-window pinch zoom (actual-size resize, no transform scaling) */
+    .viewer{
+      touch-action:none;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      cursor:grab;
+    }
+    .viewer.is-panning{cursor:grabbing;}
+    .sheet{
+      max-width:none;
+      transform:none !important;
+      transform-origin:initial !important;
+      will-change:auto !important;
+    }
+    .sheet img{
+      image-rendering:auto;
+      -webkit-user-drag:none;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+
 </style>
 </head>
 <body data-day-label="24 FRI" data-start-utc="2026-07-24T00:00:00Z" data-end-utc="2026-07-24T20:00:00Z">
@@ -86,7 +109,7 @@
     <p class="pick-help">點選想看的演出格子即可標記，再點一次可取消。選取狀態會儲存在這台裝置上。</p>
     <div class="viewer">
       <div class="sheet">
-        <img src="../assets/24fri.png" alt="24 FRI 時間表">
+        <img src="../assets/24fri.png" alt="24 FRI 時間表" draggable="false">
         <div class="now-line" aria-hidden="true"></div>
       </div>
     </div>
@@ -217,6 +240,197 @@
       layer.appendChild(el);
     });
   })();
+</script>
+
+
+<script>
+(function(){
+  const viewport = document.querySelector('.viewer');
+  const content = document.querySelector('.sheet');
+  const image = content && content.querySelector('img');
+  if (!viewport || !content || !image) return;
+
+  const MIN_SCALE = 1;
+  const HARD_MAX_SCALE = 3;
+  const pointers = new Map();
+  let scale = 1;
+  let baseWidth = 0;
+  let maxScale = HARD_MAX_SCALE;
+  let gesture = null;
+  let suppressClickUntil = 0;
+
+  function isRotatedPortrait(){
+    return window.matchMedia('(max-width: 820px) and (orientation: portrait)').matches;
+  }
+
+  function localDragDelta(screenDx, screenDy){
+    // The shell is rotated 90 degrees in smartphone portrait mode.
+    return isRotatedPortrait()
+      ? { x: screenDy, y: -screenDx }
+      : { x: screenDx, y: screenDy };
+  }
+
+  function recomputeMaxScale(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const pixelSafeScale = image.naturalWidth / Math.max(1, baseWidth * dpr);
+    maxScale = Math.max(MIN_SCALE, Math.min(HARD_MAX_SCALE, pixelSafeScale));
+  }
+
+  function clampScroll(){
+    const maxX = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    const maxY = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    viewport.scrollLeft = Math.max(0, Math.min(maxX, viewport.scrollLeft));
+    viewport.scrollTop = Math.max(0, Math.min(maxY, viewport.scrollTop));
+  }
+
+  function setScale(nextScale, anchorX = 0.5, anchorY = 0.5){
+    const oldWidth = Math.max(1, content.offsetWidth);
+    const oldHeight = Math.max(1, content.offsetHeight);
+    const oldPointX = viewport.scrollLeft + viewport.clientWidth * anchorX;
+    const oldPointY = viewport.scrollTop + viewport.clientHeight * anchorY;
+    const ratioX = oldPointX / oldWidth;
+    const ratioY = oldPointY / oldHeight;
+
+    scale = Math.max(MIN_SCALE, Math.min(maxScale, nextScale));
+    content.style.width = (baseWidth * scale) + 'px';
+
+    // Reading dimensions forces layout so the scroll anchor remains stable.
+    const newWidth = Math.max(1, content.offsetWidth);
+    const newHeight = Math.max(1, content.offsetHeight);
+    viewport.scrollLeft = ratioX * newWidth - viewport.clientWidth * anchorX;
+    viewport.scrollTop = ratioY * newHeight - viewport.clientHeight * anchorY;
+    clampScroll();
+  }
+
+  function pointerList(){
+    return Array.from(pointers.values());
+  }
+
+  function distance(a, b){
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  }
+
+  function beginGesture(){
+    const pts = pointerList();
+    if (pts.length === 1){
+      gesture = {
+        type: 'pan',
+        x: pts[0].x,
+        y: pts[0].y,
+        scrollLeft: viewport.scrollLeft,
+        scrollTop: viewport.scrollTop,
+        moved: false
+      };
+    } else if (pts.length >= 2){
+      gesture = {
+        type: 'pinch',
+        distance: Math.max(1, distance(pts[0], pts[1])),
+        scale
+      };
+    }
+  }
+
+  viewport.addEventListener('pointerdown', function(e){
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (viewport.setPointerCapture) viewport.setPointerCapture(e.pointerId);
+    beginGesture();
+  });
+
+  viewport.addEventListener('pointermove', function(e){
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = pointerList();
+
+    if (pts.length >= 2){
+      if (!gesture || gesture.type !== 'pinch') beginGesture();
+      const nextScale = gesture.scale * (distance(pts[0], pts[1]) / gesture.distance);
+      setScale(nextScale, 0.5, 0.5);
+      suppressClickUntil = Date.now() + 450;
+      e.preventDefault();
+      return;
+    }
+
+    if (pts.length === 1){
+      if (!gesture || gesture.type !== 'pan') beginGesture();
+      const screenDx = pts[0].x - gesture.x;
+      const screenDy = pts[0].y - gesture.y;
+      const delta = localDragDelta(screenDx, screenDy);
+      if (Math.abs(screenDx) + Math.abs(screenDy) > 5){
+        gesture.moved = true;
+        suppressClickUntil = Date.now() + 300;
+        viewport.classList.add('is-panning');
+      }
+      viewport.scrollLeft = gesture.scrollLeft - delta.x;
+      viewport.scrollTop = gesture.scrollTop - delta.y;
+      if (gesture.moved) e.preventDefault();
+    }
+  }, { passive: false });
+
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if (viewport.releasePointerCapture) {
+      try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    viewport.classList.remove('is-panning');
+    if (pointers.size) beginGesture();
+    else gesture = null;
+  }
+
+  viewport.addEventListener('pointerup', endPointer);
+  viewport.addEventListener('pointercancel', endPointer);
+
+  // Stop a dragged cell from being treated as a tap.
+  viewport.addEventListener('click', function(e){
+    if (Date.now() < suppressClickUntil){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
+  // Desktop trackpad/mouse: Ctrl/Command + wheel zooms only the inner timetable.
+  viewport.addEventListener('wheel', function(e){
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.002);
+    setScale(scale * factor, 0.5, 0.5);
+  }, { passive: false });
+
+  function initialise(){
+    content.style.width = '';
+    baseWidth = Math.max(1, content.offsetWidth);
+    recomputeMaxScale();
+    scale = Math.min(scale, maxScale);
+    content.style.width = (baseWidth * scale) + 'px';
+    clampScroll();
+  }
+
+  function rebaseAfterResize(){
+    const oldScale = scale;
+    const oldWidth = Math.max(1, content.offsetWidth);
+    const oldHeight = Math.max(1, content.offsetHeight);
+    const ratioX = (viewport.scrollLeft + viewport.clientWidth / 2) / oldWidth;
+    const ratioY = (viewport.scrollTop + viewport.clientHeight / 2) / oldHeight;
+
+    content.style.width = '';
+    baseWidth = Math.max(1, content.offsetWidth);
+    recomputeMaxScale();
+    scale = Math.max(MIN_SCALE, Math.min(maxScale, oldScale));
+    content.style.width = (baseWidth * scale) + 'px';
+
+    viewport.scrollLeft = ratioX * content.offsetWidth - viewport.clientWidth / 2;
+    viewport.scrollTop = ratioY * content.offsetHeight - viewport.clientHeight / 2;
+    clampScroll();
+  }
+
+  window.addEventListener('resize', function(){
+    window.clearTimeout(window.__fujiZoomResizeTimer);
+    window.__fujiZoomResizeTimer = window.setTimeout(rebaseAfterResize, 120);
+  });
+
+  if (image.complete && image.naturalWidth) initialise();
+  else image.addEventListener('load', initialise, { once: true });
+})();
 </script>
 
 </body>
