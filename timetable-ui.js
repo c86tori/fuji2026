@@ -551,7 +551,7 @@ TAKKYU ISHINO（石野卓球）
           press = null;
           suppressClickUntil = Date.now() + 900;
           openIntro(target);
-        },2500);
+        },1500);
       });
       cell.addEventListener('pointermove',function(event){
         if (!press || event.pointerId !== press.id) return;
