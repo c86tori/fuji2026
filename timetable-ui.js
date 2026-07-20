@@ -20,7 +20,7 @@
       width:var(--floating-axis-width,14px);height:var(--floating-axis-viewer-height,0px);
       margin-left:var(--floating-axis-offset,4px);
       margin-bottom:calc(-1 * var(--floating-axis-viewer-height,0px));
-      z-index:5;pointer-events:none
+      z-index:8;pointer-events:none
     }
     .floating-time-window{
       position:absolute;inset:var(--floating-axis-inset,5px) 0;overflow:hidden;border-radius:999px;
@@ -44,14 +44,18 @@
     .pick-cell.has-artist-intro{
       -webkit-touch-callout:none;-webkit-user-select:none;user-select:none
     }
+    .pick-time-layer{
+      position:absolute;inset:0;z-index:7;pointer-events:none
+    }
     .pick-time-label{
-      position:absolute;z-index:4;display:none;box-sizing:border-box;padding:0 1px;
+      position:absolute;display:none;width:max-content;box-sizing:border-box;padding:1px 2px;
       overflow:hidden;color:#111;font-size:calc(6.8px * max(1,var(--zscale,1)));
       font-weight:800;line-height:1;letter-spacing:-.025em;text-align:left;white-space:nowrap;
       font-variant-numeric:tabular-nums;text-shadow:none;pointer-events:none;
+      background:rgba(255,255,255,.88);border-radius:2px;
       transform:translate3d(0,calc(-100% - 1px),0)
     }
-    .pick-cell.is-picked.has-pick-time + .pick-time-label{display:block}
+    .pick-time-label.is-visible{display:block}
     .pick-time-label.is-left{
       padding:1px 2px 0 0;text-align:right;
       transform:translate3d(calc(-100% - 2px),0,0)
@@ -323,6 +327,10 @@
       '26sun':'23:50'
     };
     var records = [];
+    var labelLayer = document.createElement('div');
+    labelLayer.className = 'pick-time-layer';
+    labelLayer.setAttribute('aria-hidden','true');
+    sheet.appendChild(labelLayer);
     [].slice.call(sheet.querySelectorAll('.pick-cell')).forEach(function(cell){
       var titleParts = cell.title.split(' / ');
       var stage = titleParts[titleParts.length-2];
@@ -334,15 +342,39 @@
       label.textContent = showTime;
       label.style.left = cell.style.left;
       label.style.top = cell.style.top;
-      label.style.width = cell.style.width;
+      label.style.maxWidth = cell.style.width;
       if (stage === 'RED MARQUEE' && leftTimeStart[dayCode] && showTime.slice(0,5) >= leftTimeStart[dayCode]) {
         label.classList.add('is-left');
       }
       cell.classList.add('has-pick-time');
-      cell.insertAdjacentElement('afterend',label);
+      labelLayer.appendChild(label);
       records.push({cell:cell,label:label,full:showTime,short:showTime.slice(0,6)});
     });
-    if (!records.length) return;
+    if (!records.length) {
+      labelLayer.remove();
+      return;
+    }
+
+    function syncLabelVisibility(record){
+      record.label.classList.toggle('is-visible',record.cell.classList.contains('is-picked'));
+    }
+    records.forEach(syncLabelVisibility);
+    var pickLayer = sheet.querySelector('.pick-layer');
+    if (pickLayer && 'MutationObserver' in window) {
+      var pickObserver = new MutationObserver(function(mutations){
+        mutations.forEach(function(mutation){
+          var cell = mutation.target;
+          records.forEach(function(record){
+            if (record.cell === cell) syncLabelVisibility(record);
+          });
+        });
+      });
+      pickObserver.observe(pickLayer,{subtree:true,attributes:true,attributeFilter:['aria-pressed']});
+    } else {
+      records.forEach(function(record){
+        record.cell.addEventListener('click',function(){ syncLabelVisibility(record); });
+      });
+    }
 
     var measureContext = document.createElement('canvas').getContext('2d');
     function measureText(text,fontSize,fontFamily){
@@ -357,7 +389,7 @@
       var axisFontSize = axisStyle ? parseFloat(axisStyle.fontSize) : 8;
       var baseFontSize = (Number.isFinite(axisFontSize) ? axisFontSize : 8) * .85;
       records.forEach(function(record){
-        var available = Math.max(0,record.cell.offsetWidth - 2);
+        var available = Math.max(0,record.cell.offsetWidth - 4);
         var fontFamily = getComputedStyle(record.label).fontFamily || 'system-ui,sans-serif';
         var text = record.full;
         var measured = measureText(text,baseFontSize,fontFamily);
